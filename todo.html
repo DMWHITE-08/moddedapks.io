@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List — ModdedApks.io</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/todo.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="shell">
+    <div class="brand"><span class="dot"></span>ModdedApks<small>.io</small></div>
+    <nav class="site">
+      <a href="index.html">Apps</a>
+      <a href="app.html">Downloads</a>
+      <a href="todo.html" class="active">To-Do</a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell" id="main">
+  <section class="hero">
+    <span class="eyebrow">Task Management</span>
+    <h1>Your To-Do List</h1>
+    <p class="lede">Keep track of your tasks. Everything is saved locally in your browser.</p>
+  </section>
+
+  <div class="todo-container">
+    <div class="todo-input-section">
+      <input 
+        type="text" 
+        id="todoInput" 
+        class="todo-input" 
+        placeholder="Add a new task..."
+        autocomplete="off"
+      >
+      <button id="addBtn" class="btn accent">Add Task</button>
+    </div>
+
+    <div class="todo-filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="active">Active</button>
+      <button class="filter-btn" data-filter="completed">Completed</button>
+    </div>
+
+    <div id="todoList" class="todo-list"></div>
+
+    <div class="todo-footer">
+      <span id="taskCount" class="task-count">0 tasks</span>
+      <button id="clearBtn" class="btn danger">Clear Completed</button>
+    </div>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="shell">ModdedApks.io — self-hosted app catalogue</div>
+</footer>
+
+<script src="assets/todo.js"></script>
+</body>
+</html>
