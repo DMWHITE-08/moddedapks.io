@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ModdedApks — original Android apps, direct download</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="shell">
+    <div class="brand"><span class="dot"></span>ModdedApks<small>.io</small></div>
+    <nav class="site">
+      <a href="index.html" class="active">Apps</a>
+      <a href="app.html">Downloads</a>
+      <a href="todo.html">To-Do</a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell">
+  <section class="hero">
+    <span class="eyebrow">Independent Android builds</span>
+    <h1>Apps I built myself, packaged and ready to install.</h1>
+    <p class="lede">No accounts, no ad-tech SDKs, no bundled junk — just the APK and its manifest. Pick an app below to see its details and download links.</p>
+  </section>
+
+  <div id="grid" class="grid"></div>
+</main>
+
+<footer class="site">
+  <div class="shell">ModdedApks.io — self-hosted app catalogue</div>
+</footer>
+
+<script src="assets/store.js"></script>
+<script src="assets/main.js"></script>
+<script>
+  const apps = getApps();
+  const grid = document.getElementById("grid");
+  if (apps.length === 0) {
+    grid.innerHTML = `<div class="empty"><div class="glyph">▢</div>No apps published yet.</div>`;
+  } else {
+    grid.innerHTML = apps.map(renderAppCard).join("");
+  }
+</script>
+</body>
+</html>

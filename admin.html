@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — ModdedApks.io</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="shell">
+    <div class="brand"><span class="dot"></span>ModdedApks<small>.io</small></div>
+    <nav class="site">
+      <a href="index.html">Apps</a>
+      <a href="app.html">Downloads</a>
+      <a href="todo.html">To-Do</a>
+    </nav>
+  </div>
+</header>
+
+<main class="shell" id="main"></main>
+
+<script src="assets/store.js"></script>
+<script>
+const main = document.getElementById("main");
+
+function renderLock(errorMsg) {
+  main.innerHTML = `
+    <div class="admin-lock">
+      <div class="panel">
+        <h2>Admin access</h2>
+        <p>Enter the admin password to manage the catalogue.</p>
+        <input type="password" id="pw" placeholder="Password" autofocus>
+        <div class="err">${errorMsg ? escapeHtmlSafe(errorMsg) : ""}</div>
+        <button class="btn accent" id="loginBtn" style="width:100%; margin-top:6px; justify-content:center;">Unlock</button>
+      </div>
+    </div>
+  `;
+  const pwInput = document.getElementById("pw");
+  const submit = async () => {
+    const ok = await checkPassword(pwInput.value);
+    if (ok) { setAdminSession(true); renderDashboard(); }
+    else renderLock("Incorrect password.");
+  };
+  document.getElementById("loginBtn").addEventListener("click", submit);
+  pwInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+}
+
+function escapeHtmlSafe(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+function renderDashboard() {
+  const apps = getApps();
+  main.innerHTML = `
+    <div class="admin-bar">
+      <h1 style="font-size:22px;">App catalogue <span class="mono" style="color:var(--text-dim); font-size:13px;">(${apps.length})</span></h1>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" id="pwBtn">Change password</button>
+        <button class="btn accent" id="addBtn">+ Add app</button>
+        <button class="btn" id="logoutBtn">Log out</button>
+      </div>
+    </div>
+    <table class="admin-table">
+      <thead><tr><th>App</th><th>Version</th><th>Size</th><th>Downloads</th><th>Updated</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  `;
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = apps.length ? apps.map(a => `
+    <tr>
+      <td><strong>${escapeHtmlSafe(a.name)}</strong><div class="mono" style="color:var(--text-dim); font-size:11.5px;">${escapeHtmlSafe(a.packageId||"")}</div></td>
+      <td class="mono">${escapeHtmlSafe(a.version||"")}</td>
+      <td class="mono">${escapeHtmlSafe(a.size||"")}</td>
+      <td class="mono">${(a.downloads||[]).length} link(s)</td>
+      <td class="mono">${escapeHtmlSafe(a.updated||"")}</td>
+      <td class="admin-row-actions">
+        <button class="btn" data-edit="${a.id}">Edit</button>
+        <button class="btn danger" data-del="${a.id}">Delete</button>
+      </td>
+    </tr>
+  `).join("") : `<tr><td colspan="6" class="empty">No apps yet — click "Add app".</td></tr>`;
+
+  document.getElementById("addBtn").addEventListener("click", () => openEditor(null));
+  document.getElementById("logoutBtn").addEventListener("click", () => { setAdminSession(false); renderLock(); });
+  document.getElementById("pwBtn").addEventListener("click", openPasswordModal);
+  tbody.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openEditor(b.dataset.edit)));
+  tbody.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => {
+    if (confirm("Delete this app?")) {
+      const remaining = getApps().filter(a => a.id !== b.dataset.del);
+      saveApps(remaining);
+      renderDashboard();
+      toast("App deleted.");
+    }
+  }));
+}
+
+function openEditor(id) {
+  const existing = id ? getAppById(id) : null;
+  const dls = existing?.downloads?.length ? existing.downloads : [{label:"Direct download",url:""},{label:"Mirror 1",url:""},{label:"Mirror 2",url:""}];
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h3>${existing ? "Edit app" : "Add app"}</h3>
+      <p style="color:var(--text-dim); font-size:13px; margin:0 0 10px;">Fields marked with a manifest icon (v/size) show up on the app's card.</p>
+
+      <label>Name</label>
+      <input id="f_name" value="${existing ? escapeHtmlSafe(existing.name) : ""}" placeholder="OrbitList">
+
+      <label>Icon initials (2 letters)</label>
+      <input id="f_icon" maxlength="3" value="${existing ? escapeHtmlSafe(existing.icon||"") : ""}" placeholder="OL">
+
+      <label>Tagline (short, shown on card)</label>
+      <input id="f_tagline" value="${existing ? escapeHtmlSafe(existing.tagline||"") : ""}" placeholder="A fast, offline-first task list.">
+
+      <label>Description (shown on download page)</label>
+      <textarea id="f_desc" rows="3" placeholder="What the app does...">${existing ? escapeHtmlSafe(existing.description||"") : ""}</textarea>
+
+      <label>Version</label>
+      <input id="f_version" value="${existing ? escapeHtmlSafe(existing.version||"") : ""}" placeholder="1.0.0">
+
+      <label>Size</label>
+      <input id="f_size" value="${existing ? escapeHtmlSafe(existing.size||"") : ""}" placeholder="6.8 MB">
+
+      <label>Package ID</label>
+      <input id="f_pkg" value="${existing ? escapeHtmlSafe(existing.packageId||"") : ""}" placeholder="com.yourname.appname">
+
+      <label>Minimum Android version</label>
+      <input id="f_sdk" value="${existing ? escapeHtmlSafe(existing.minSdk||"") : ""}" placeholder="Android 8.0+">
+
+      <label>Last updated</label>
+      <input id="f_updated" type="date" value="${existing ? escapeHtmlSafe(existing.updated||"") : ""}">
+
+      <label>Download links (up to 3)</label>
+      <div id="dlRows"></div>
+
+      <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+        <button class="btn" id="cancelBtn">Cancel</button>
+        <button class="btn accent" id="saveBtn">${existing ? "Save changes" : "Publish app"}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  const dlRows = backdrop.querySelector("#dlRows");
+  dls.slice(0,3).forEach((d, i) => {
+    const row = document.createElement("div");
+    row.className = "dl-edit-row";
+    row.innerHTML = `
+      <input placeholder="Label (e.g. Direct download)" class="dl-label" value="${escapeHtmlSafe(d.label||"")}">\n      <input placeholder="https://..." class="dl-url" value="${escapeHtmlSafe(d.url||"")}">
+    `;
+    dlRows.appendChild(row);
+  });
+
+  backdrop.querySelector("#cancelBtn").addEventListener("click", () => backdrop.remove());
+  backdrop.querySelector("#saveBtn").addEventListener("click", () => {
+    const name = backdrop.querySelector("#f_name").value.trim();
+    if (!name) { alert("App name is required."); return; }
+
+    const downloads = Array.from(dlRows.querySelectorAll(".dl-edit-row")).map(r => ({
+      label: r.querySelector(".dl-label").value.trim() || "Download",
+      url: r.querySelector(".dl-url").value.trim() || "#"
+    }));
+
+    const appData = {
+      id: existing ? existing.id : slugify(name),
+      name,
+      icon: backdrop.querySelector("#f_icon").value.trim().toUpperCase() || name.slice(0,2).toUpperCase(),
+      tagline: backdrop.querySelector("#f_tagline").value.trim(),
+      description: backdrop.querySelector("#f_desc").value.trim(),
+      version: backdrop.querySelector("#f_version").value.trim(),
+      size: backdrop.querySelector("#f_size").value.trim(),
+      packageId: backdrop.querySelector("#f_pkg").value.trim(),
+      minSdk: backdrop.querySelector("#f_sdk").value.trim(),
+      updated: backdrop.querySelector("#f_updated").value.trim(),
+      downloads
+    };
+
+    const apps = getApps();
+    const idx = apps.findIndex(a => a.id === appData.id);
+    if (idx >= 0) apps[idx] = appData; else apps.push(appData);
+    saveApps(apps);
+    backdrop.remove();
+    renderDashboard();
+    toast(existing ? "App updated." : "App published.");
+  });
+}
+
+function openPasswordModal() {
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal" style="width:360px;">
+      <h3>Change admin password</h3>
+      <label>New password</label>
+      <input type="password" id="newPw" placeholder="At least 6 characters">
+      <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+        <button class="btn" id="cancelPw">Cancel</button>
+        <button class="btn accent" id="savePw">Save</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  backdrop.querySelector("#cancelPw").addEventListener("click", () => backdrop.remove());
+  backdrop.querySelector("#savePw").addEventListener("click", async () => {
+    const val = backdrop.querySelector("#newPw").value;
+    if (val.length < 6) { alert("Use at least 6 characters."); return; }
+    await setPassword(val);
+    backdrop.remove();
+    toast("Password updated for this browser.");
+  });
+}
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+(async function init() {
+  await ensurePasswordSeeded();
+  if (isAdmin()) renderDashboard();
+  else renderLock();
+})();
+</script>
+</body>
+</html>
